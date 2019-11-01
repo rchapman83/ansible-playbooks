@@ -1,0 +1,43 @@
+---
+# Basic playbook to backup Cisco cat configs
+# Can also be used for Cisco ISR configs 
+- name: "Catalyst Config Backups"
+  hosts: Switch
+  gather_facts: true
+  connection: local
+
+  vars:
+    cli:
+      host: "{{ inventory_hostname }}"
+      port: 22
+      timeout: 5
+      username: 
+      password:
+
+    timestamp: "{{ ansible_date_time.date }}T{{ ansible_date_time.hour }}{{ ansible_date_time.minute }}-{{ ansible_date_time.tz }}"
+
+    backup_path: /config-backups/sitename/
+
+  tasks:
+    - name: Show Running-Config
+      ios_command:
+        commands: show running
+        provider: "{{ cli }}"
+      register: config
+
+    - name: Check backup root exists
+      file:
+        path: "{{ backup_path }}"
+        state: directory
+      run_once: yes
+
+    - name: Check device directory exists
+      file:
+        path: "{{ backup_path }}/{{ inventory_hostname }}"
+        state: directory
+
+    - name: Write Running-Config to disk
+      copy:
+        content: "{{ config.stdout[0] }}"
+        dest: "{{ backup_path }}/{{ inventory_hostname }}/{{ timestamp }}-config.cfg"
+...
