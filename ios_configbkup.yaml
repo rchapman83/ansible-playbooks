@@ -42,7 +42,7 @@
         age: 60d
       register: files_to_delete
       tags:
-        - file-checks
+        - file-kill
 
     - name: Remove obsolete configuration backups
       file:
@@ -50,7 +50,7 @@
         state: absent
       with_items: '{{ files_to_delete.files }}'
       tags:
-        - file-checks
+        - file-kill
     
     - name: Show Running-Config
       ios_command:
