@@ -1,43 +1,69 @@
 ---
 # Basic playbook to backup Cisco cat configs
 # Can also be used for Cisco ISR configs 
-- name: "Catalyst Config Backups"
+- name: 'Catalyst Config Backups'
   hosts: Switch
   gather_facts: true
   connection: local
 
   vars:
     cli:
-      host: "{{ inventory_hostname }}"
+      host: '{{ inventory_hostname }}'
       port: 22
       timeout: 5
       username: 
       password:
 
-    timestamp: "{{ ansible_date_time.date }}T{{ ansible_date_time.hour }}{{ ansible_date_time.minute }}-{{ ansible_date_time.tz }}"
+    timestamp: '{{ ansible_date_time.date }}T{{ ansible_date_time.hour }}{{ ansible_date_time.minute }}-{{ ansible_date_time.tz }}'
 
     backup_path: /config-backups/sitename/
 
   tasks:
-    - name: Show Running-Config
-      ios_command:
-        commands: show running
-        provider: "{{ cli }}"
-      register: config
-
-    - name: Check backup root exists
+    - name: Check existence or create backup path
       file:
-        path: "{{ backup_path }}"
+        path: '{{ backup_root }}'
         state: directory
       run_once: yes
+      tags:
+        - file-checks
 
-    - name: Check device directory exists
+    - name: Check existence or create device directory
       file:
-        path: "{{ backup_path }}/{{ inventory_hostname }}"
+        path: '{{ backup_path }}/{{ inventory_hostname }}'
         state: directory
+      tags:
+        - file-checks
 
+    - name: Find obsolete backups to remove
+      find:
+        paths: '{{ backup_path }}/{{ inventory_hostname }}'
+        patterns: '.*\.cfg'
+        use_regex: true
+        age: 60d
+      register: files_to_delete
+      tags:
+        - file-checks
+
+    - name: Remove obsolete configuration backups
+      file:
+        path: '{{ item.path }}'
+        state: absent
+      with_items: '{{ files_to_delete.files }}'
+      tags:
+        - file-checks
+    
+    - name: Show Running-Config
+      ios_command:
+        commands: show running view full
+        provider: '{{ cli }}'
+      register: config_backup
+      tags:
+        - backup-create
+      
     - name: Write Running-Config to disk
       copy:
-        content: "{{ config.stdout[0] }}"
-        dest: "{{ backup_path }}/{{ inventory_hostname }}/{{ timestamp }}-config.cfg"
+        content: '{{ config.stdout[0] }}'
+        dest: '{{ backup_path }}/{{ inventory_hostname }}/{{ timestamp }}-bkup.cfg'
+      tags:
+        - backup-create
 ...
