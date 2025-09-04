@@ -1,3 +1,4 @@
+---
 # Registry changes to mitigate CVE-2017-5753, CVE-2017-5715 and CVE-2017-5754.
 - name: Patch Windows systems against Meltdown and Spectre
   hosts: "{{ target_hosts | default('all') }}"
